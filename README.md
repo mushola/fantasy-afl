@@ -1,4 +1,4 @@
-# Fantasy Rugby Team Selector
+# Fantasy AFL Team Selector
 
 Uses the PuLP linear programming library to select a team for a fantasy afl competitions.
 
