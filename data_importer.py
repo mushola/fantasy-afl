@@ -1,10 +1,10 @@
-import time, os, sys, requests
+import os, sys, requests
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from secrets import *
+from fantasy_creds import *
 
 data_urls = ["https://fantasy.afl.com.au/json/fantasy/players.json",
              "https://fantasy.afl.com.au/json/fantasy/squads.json",
@@ -27,19 +27,19 @@ def download_data(url, data_folder):
 
 driver = webdriver.Firefox()
 driver.get("https://fantasy.afl.com.au/classic/team")
-#time.sleep(5)
+
+
 try:
     username = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID, "input27"))
     )
     username.send_keys(uname)
-    username.send_keys(Keys.RETURN);
+    username.send_keys(Keys.RETURN)
     password = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID, "input63"))
     )
     password.send_keys(pword)
-    password.send_keys(Keys.RETURN);
-    #time.sleep(5)
+    password.send_keys(Keys.RETURN)
 except:
     print("log in failed")
     sys.exit(1)

@@ -1,11 +1,10 @@
 # user added
 Best_fantasy_team
-base_take4.py
 scratch.*
 scraper_scratch.py
-secrets.py
-test.txt
-rugby.html
+fantasy_creds.py
+data/*
+scratch.*
 
 
 # Byte-compiled / optimized / DLL files
