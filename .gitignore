@@ -3,8 +3,8 @@ Best_fantasy_team
 scratch.*
 scraper_scratch.py
 fantasy_creds.py
-data/*
 scratch.*
+data/*
 
 
 # Byte-compiled / optimized / DLL files
