@@ -4,47 +4,54 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from fantasy_creds import *
-
-data_urls = ["https://fantasy.afl.com.au/json/fantasy/players.json",
-             "https://fantasy.afl.com.au/json/fantasy/squads.json",
-             "https://fantasy.afl.com.au/json/fantasy/rounds.json",
-             "https://fantasy.afl.com.au/json/fantasy/players_game_stats/2026.json"
-             ]
+import fantasy_creds
 
 
-def download_data(url, data_folder):
-    filename = url.split("/")[-1]
-    save_path = os.path.join(data_folder, filename)
-    response = requests.get(url)
+data_folder = 'data'
+data_urls = {'players.json':      "https://fantasy.afl.com.au/json/fantasy/players.json",
+             'squads.json':       "https://fantasy.afl.com.au/json/fantasy/squads.json",
+             'rounds.json':       "https://fantasy.afl.com.au/json/fantasy/rounds.json",
+             'player_stats.json': "https://fantasy.afl.com.au/json/fantasy/players_game_stats/2026.json",
+             'team.json':         "https://fantasy.afl.com.au/api/en/fantasy/team/show" # requires cookies
+             }
+
+
+
+driver = webdriver.Firefox()
+driver.get("https://fantasy.afl.com.au/classic/team")
+
+# log in
+try:
+    username = WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.ID, "input27"))
+    )
+    username.send_keys(fantasy_creds.uname)
+    username.send_keys(Keys.RETURN)
+    password = WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.ID, "input63"))
+    )
+    password.send_keys(fantasy_creds.pword)
+    password.send_keys(Keys.RETURN)
+except:
+    print("log in failed")
+    sys.exit(1)
+
+
+def download_data(filename, url):
+    response = requests.get(url, cookies=cookies_dict)
     if response.status_code == 200:
-        with open(save_path, 'wb') as file:
+        with open(os.path.join(data_folder, filename), 'wb') as file:
             file.write(response.content)
         print(f'{filename} downloaded successfully')
     else:
         print(f'Failed to download {filename}')
 
 
-driver = webdriver.Firefox()
-driver.get("https://fantasy.afl.com.au/classic/team")
+for filename, url in data_urls.items():
+    # update cookies dict
+    cookies_dict = {cookie['name']: cookie['value'] for cookie in driver.get_cookies()}
+    download_data(filename, url)
+    print(cookies_dict)
 
 
-try:
-    username = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.ID, "input27"))
-    )
-    username.send_keys(uname)
-    username.send_keys(Keys.RETURN)
-    password = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.ID, "input63"))
-    )
-    password.send_keys(pword)
-    password.send_keys(Keys.RETURN)
-except:
-    print("log in failed")
-    sys.exit(1)
-
-for url in data_urls:
-    download_data(url, "data")
-    
 driver.quit()

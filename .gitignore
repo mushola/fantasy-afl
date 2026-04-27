@@ -5,6 +5,7 @@ scraper_scratch.py
 fantasy_creds.py
 scratch.*
 data/*
+analysis.py
 
 
 # Byte-compiled / optimized / DLL files
