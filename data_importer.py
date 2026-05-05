@@ -51,7 +51,6 @@ for filename, url in data_urls.items():
     # update cookies dict
     cookies_dict = {cookie['name']: cookie['value'] for cookie in driver.get_cookies()}
     download_data(filename, url)
-    print(cookies_dict)
 
 
 driver.quit()
