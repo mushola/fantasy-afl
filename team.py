@@ -9,8 +9,8 @@ now = datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
 
 # use the following option variables to tweak selections
 
-player_include = []  # must be id int, overrides status_exclude
-player_exclude = []  # must be id int
+player_include = [] # must be id int, overrides status_exclude
+player_exclude = [] # must be id int
 status_exclude = [] # is overridden by player_include
 
 curr_round = 9 # TODO determine current round from data import
@@ -29,8 +29,8 @@ POSITIONS = {"DEF": {'field': 6, 'bench': 2},
              "FWD": {'field': 6, 'bench': 2},
              "UTL": {'field': 0, 'bench': 1}
 }
-ROLE_WEIGHT = {'field': 1, 'bench': 0.5}
-
+ROLE_WEIGHT = {'field': 1, 'bench': 0.25}
+STATUS_WEIGHT = {} # TODO include in objective function, eg injured scores 0
 
 ############## IMPORT DATA ##############
 
@@ -38,13 +38,17 @@ players = pd.read_json('data\\players.json').set_index('id')
 squads = pd.read_json('data\\squads.json').set_index('id')
 with open('data\\team.json') as f:
     team = json.load(f)['success']['team']
-    
+
+# determine current team - list of ids
 current_team = set()
 for pos, ps in team['lineup'].items():
     current_team.update(ps)
 for pos, ps in team['bench'].items():
     current_team.update(ps)
 current_team.add(team['utilityId'])
+
+# prune input data
+
 
 
 # combination matrices for improved readability (eg ODP)
@@ -76,7 +80,8 @@ y = LpVariable.dicts('assign',
 ############## OBJECTIVE FUNCTION #######
 
 prob += lpSum(players.loc[p, 'averagePoints'] * (
-    1 if SLOTS[s][1] == "field" else 0.75 if SLOTS[s][0] != "UTL" else 0
+    # 1 if SLOTS[s][1] == "field" else 0.75 if SLOTS[s][0] != "UTL" else 0
+    ROLE_WEIGHT[SLOTS[s][1]]
     ) * y[p][s] for p in players.index for s in SLOT_IDS
 )
 
@@ -140,6 +145,16 @@ prob.solve()
 
 ############## PRINT RESULTS ############
 
+def print_player(p, slot=None):
+    print(f"{players.loc[p,'firstName'][0]} {players.loc[p,'lastName']:<15}" +
+          ("" if slot is None else f" {slot[0]} {slot[1]}"),
+          squads.loc[players.loc[p,'squadId'], 'abbreviation'].rjust(4),
+          str(players.loc[p,'averagePoints']).rjust(6),
+          str(players.loc[p,'price']).rjust(8),
+          ti[p].varValue,
+          players.loc[p,'status'].ljust(9),
+          players.loc[p,'position']
+        )
 
 total_cost = 0
 player_count = 0
@@ -147,6 +162,7 @@ pos_count = {(pos, role): 0 for pos in POSITIONS for role in ROLES}
 new_team = {slot: 0 for slot in SLOTS}
 trades = {'in': [], 'out': []}
 
+# build results dicts
 for p in players.index:
     if ti[p].varValue == 1:
         trades['in'].append(p)
@@ -162,33 +178,16 @@ for p in players.index:
 
     
 for slot, p in new_team.items():
-    pos, role, _ = slot
-    print(f"{players.loc[p,'firstName'][0]} {players.loc[p,'lastName']}".ljust(15),
-            pos, role,
-            squads.loc[players.loc[p,'squadId'], 'abbreviation'].rjust(4),
-            str(players.loc[p,'averagePoints']).rjust(6),
-            str(players.loc[p,'price']).rjust(8),
-            ti[p].varValue
-        )
+    print_player(p, slot)
 print(f"player count: {player_count}")
 print()
 print("trade out:")
 for p in trades['out']:
-    print(f"{players.loc[p,'firstName'][0]} {players.loc[p,'lastName']}".ljust(15),
-            squads.loc[players.loc[p,'squadId'], 'abbreviation'].rjust(4),
-            str(players.loc[p,'averagePoints']).rjust(6),
-            str(players.loc[p,'price']).rjust(8),
-            players.loc[p,'position']
-    )
+    print_player(p)
 print()
 print("trade in:")
 for p in trades['in']:
-    print(f"{players.loc[p,'firstName'][0]} {players.loc[p,'lastName']}".ljust(15),
-            squads.loc[players.loc[p,'squadId'], 'abbreviation'].rjust(4),
-            str(players.loc[p,'averagePoints']).rjust(6),
-            str(players.loc[p,'price']).rjust(8),
-            players.loc[p,'position']
-    )
+    print_player(p)
     
 
 print()
