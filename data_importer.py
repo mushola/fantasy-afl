@@ -1,4 +1,5 @@
 import os, sys, requests
+from time import sleep
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -37,15 +38,19 @@ except:
     sys.exit(1)
 
 
-def download_data(filename, url):
+def download_data(filename, url, attempts=5):
+    cookies_dict = {cookie['name']: cookie['value'] for cookie in driver.get_cookies()}
     response = requests.get(url, cookies=cookies_dict)
     if response.status_code == 200:
         with open(os.path.join(data_folder, filename), 'wb') as file:
             file.write(response.content)
-        print(f'{filename} downloaded successfully')
+        print(f"{filename} downloaded successfully")
+    elif attempts > 0:
+        print(f"Failed to download {filename}... {attempts} attempt/s remaining...")
+        sleep(0.5)
+        download_data(filename, url, attempts-1)
     else:
-        print(f'Failed to download {filename}')
-
+        print(f"Failed to download {filename}")
 
 for filename, url in data_urls.items():
     # update cookies dict
