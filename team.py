@@ -30,7 +30,7 @@ POSITIONS = {"DEF": {'field': 6, 'bench': 2},
              "UTL": {'field': 0, 'bench': 1}
 }
 ROLE_WEIGHT = {'field': 1, 'bench': 0.25}
-STATUS_WEIGHT = {} # TODO include in objective function, eg injured scores 0
+STATUS_WEIGHT = {'injured': 0.2, 'uncertain': 1} # TODO include in objective function, eg injured scores 0
 
 ############## IMPORT DATA ##############
 
@@ -81,7 +81,7 @@ y = LpVariable.dicts('assign',
 
 prob += lpSum(players.loc[p, 'averagePoints'] * (
     # 1 if SLOTS[s][1] == "field" else 0.75 if SLOTS[s][0] != "UTL" else 0
-    ROLE_WEIGHT[SLOTS[s][1]]
+    ROLE_WEIGHT[SLOTS[s][1]] * STATUS_WEIGHT[players.loc[p, 'status']]
     ) * y[p][s] for p in players.index for s in SLOT_IDS
 )
 
@@ -110,10 +110,8 @@ for p in players.index:
 
 # budget constraint
 prob += (
-    lpSum(players.loc[p, 'price'] * ti[p] for p in players.index)
-    <=
-    lpSum(players.loc[p, 'price'] * to[p] for p in players.index)
-    + team['budget']
+    lpSum(players.loc[p, 'price'] * ti[p] for p in players.index) <=
+    lpSum(players.loc[p, 'price'] * to[p] for p in players.index) + team['budget']
 )
 
 # fill each slot
@@ -161,6 +159,7 @@ player_count = 0
 pos_count = {(pos, role): 0 for pos in POSITIONS for role in ROLES}
 new_team = {slot: 0 for slot in SLOTS}
 trades = {'in': [], 'out': []}
+team_score = 0
 
 # build results dicts
 for p in players.index:
@@ -175,11 +174,13 @@ for p in players.index:
             total_cost += players.loc[p,'price']
             player_count += 1
             pos_count[(pos, role)] += 1
+            if role == 'field':
+                team_score += players.loc[p,'averagePoints']
 
     
 for slot, p in new_team.items():
     print_player(p, slot)
-print(f"player count: {player_count}")
+print(f"player count: {player_count}   averagePoints: {team_score}")
 print()
 print("trade out:")
 for p in trades['out']:
