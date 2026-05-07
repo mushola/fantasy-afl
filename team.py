@@ -9,9 +9,21 @@ now = datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
 
 # use the following option variables to tweak selections
 
-player_include = [] # must be id int, overrides status_exclude
-player_exclude = [] # must be id int
-status_exclude = [] # is overridden by player_include
+
+player_trade_include = {'out': [], # maximum two players
+                        'in':  []  # maximum two players
+}
+player_trade_exclude = [] # any number of players, ignored from both trade in or out
+role_weight = {'field': 1,
+               'bench': 0.25,
+}
+status_weight = {'emergency'  : 0.25,
+                 'injured'    : 0,
+                 'not-playing': 0,
+                 'playing':     1,
+                 'uncertain':   1,
+}
+
 
 curr_round = 9 # TODO determine current round from data import
 
@@ -22,6 +34,7 @@ PROB_STR = "best_fantasy_team"
 BUDGET = 21719000
 SQUAD_COUNT = 30
 EMG_COUNT = 4
+MAX_TRADES = 2
 ROLES = ['field', 'bench']
 POSITIONS = {"DEF": {'field': 6, 'bench': 2},
              "MID": {'field': 8, 'bench': 2},
@@ -29,9 +42,7 @@ POSITIONS = {"DEF": {'field': 6, 'bench': 2},
              "FWD": {'field': 6, 'bench': 2},
              "UTL": {'field': 0, 'bench': 1}
 }
-ROLE_WEIGHT = {'field': 1, 'bench': 0.25}
-STATUS_WEIGHT = {'emergency': 1, 'injured': 0.2, 'not-playing': 0, 'playing': 1, 'uncertain': 1, } # TODO include in objective function, eg injured scores 0
-# ['emergency', 'injured', 'not-playing', 'playing', 'uncertain']
+
 ############## IMPORT DATA ##############
 
 players = pd.read_json('data\\players.json').set_index('id')
@@ -56,6 +67,8 @@ SLOTS = [(pos, role, i) for pos in POSITIONS for role in ROLES for i in range(PO
 SLOT_IDS = list(range(len(SLOTS)))
 PS = [(player, ids) for player in players.index for ids in SLOT_IDS]
 
+# TODO pre run checks:
+
 
 ############## PROBLEM ##################
 
@@ -79,9 +92,9 @@ y = LpVariable.dicts('assign',
 
 ############## OBJECTIVE FUNCTION #######
 
-prob += lpSum(players.loc[p, 'averagePoints'] * (
-    # 1 if SLOTS[s][1] == "field" else 0.75 if SLOTS[s][0] != "UTL" else 0
-    ROLE_WEIGHT[SLOTS[s][1]] * STATUS_WEIGHT[players.loc[p, 'status']]
+prob += lpSum(
+    players.loc[p, 'averagePoints'] * (
+    role_weight[SLOTS[s][1]] * status_weight[players.loc[p, 'status']]
     ) * y[p][s] for p in players.index for s in SLOT_IDS
 )
 
@@ -91,9 +104,23 @@ prob += lpSum(players.loc[p, 'averagePoints'] * (
 # prob += lpSum(in_squad[p] for p in players.index) == 30
 
 # trades
-prob += lpSum(ti[p] for p in players.index if p not in current_team) <= 2
-prob += lpSum(to[p] for p in current_team) <= 2
+prob += lpSum(ti[p] for p in players.index if p not in current_team) <= MAX_TRADES
+prob += lpSum(to[p] for p in current_team) <= MAX_TRADES
 prob += lpSum(ti[p] for p in players.index) == lpSum(to[p] for p in players.index)
+
+# trade exclusions
+for p in player_trade_exclude:
+    prob += to[p] == 0
+    prob += ti[p] == 0
+
+# trade inclusions
+for p in player_trade_include['out'][:MAX_TRADES]:
+    if p in current_team:
+        prob += to[p] == 1
+
+for p in player_trade_include['in'][:MAX_TRADES]:
+    if p not in current_team:
+        prob += ti[p] == 1
 
 # link trades to squad
 for p in players.index:
@@ -144,13 +171,14 @@ prob.solve()
 ############## PRINT RESULTS ############
 
 def print_player(p, slot=None):
-    print(f"{players.loc[p,'firstName'][0]} {players.loc[p,'lastName']:<15}" +
+    print(f"({p})".ljust(9),
+          f"{players.loc[p,'firstName'][0]} {players.loc[p,'lastName']:<15}" +
           ("" if slot is None else f" {slot[0]} {slot[1]}"),
           squads.loc[players.loc[p,'squadId'], 'abbreviation'].rjust(4),
           str(players.loc[p,'averagePoints']).rjust(6),
           str(players.loc[p,'price']).rjust(8),
           ti[p].varValue,
-          players.loc[p,'status'].ljust(9),
+          players.loc[p,'status'].ljust(11),
           players.loc[p,'position']
         )
 
