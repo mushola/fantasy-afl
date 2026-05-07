@@ -30,8 +30,8 @@ POSITIONS = {"DEF": {'field': 6, 'bench': 2},
              "UTL": {'field': 0, 'bench': 1}
 }
 ROLE_WEIGHT = {'field': 1, 'bench': 0.25}
-STATUS_WEIGHT = {'injured': 0.2, 'uncertain': 1} # TODO include in objective function, eg injured scores 0
-
+STATUS_WEIGHT = {'emergency': 1, 'injured': 0.2, 'not-playing': 0, 'playing': 1, 'uncertain': 1, } # TODO include in objective function, eg injured scores 0
+# ['emergency', 'injured', 'not-playing', 'playing', 'uncertain']
 ############## IMPORT DATA ##############
 
 players = pd.read_json('data\\players.json').set_index('id')
