@@ -9,6 +9,7 @@ now = datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
 
 # use the following option variables to tweak selections
 
+rank_method = 'averagePoints' # 'EWMA', 'averagePoints'
 
 player_trade_include = {'out': [], # maximum two players
                         'in':  []  # maximum two players
@@ -50,6 +51,8 @@ squads = pd.read_json('data\\squads.json').set_index('id')
 with open('data\\team.json') as f:
     team = json.load(f)['success']['team']
 
+############## PREPARE DATA #############
+
 # determine current team - list of ids
 current_team = set()
 for pos, ps in team['lineup'].items():
@@ -61,6 +64,21 @@ current_team.add(team['utilityId'])
 # prune input data
 
 
+# calculate expotenially weighted moving average (EWMA)
+def ewma(game_dict, decay=0.8):
+    if not game_dict:
+        return 0
+    scores = [score for _, score in 
+              sorted(game_dict.items(), key=lambda x: int(x[0]))
+        ]
+    n = len(scores)
+    weights = [decay ** (n - i - 1) for i in range(n)]
+    weighted_sum = sum(w * s for w, s in zip(weights, scores))
+    return weighted_sum / sum(weights)
+
+players['EWMA'] = players['scores'].apply(
+    lambda x: ewma(x)
+)
 
 # combination matrices for improved readability (eg ODP)
 SLOTS = [(pos, role, i) for pos in POSITIONS for role in ROLES for i in range(POSITIONS[pos][role])]
@@ -93,7 +111,7 @@ y = LpVariable.dicts('assign',
 ############## OBJECTIVE FUNCTION #######
 
 prob += lpSum(
-    players.loc[p, 'averagePoints'] * (
+    players.loc[p, rank_method] * (
     role_weight[SLOTS[s][1]] * status_weight[players.loc[p, 'status']]
     ) * y[p][s] for p in players.index for s in SLOT_IDS
 )
@@ -175,7 +193,7 @@ def print_player(p, slot=None):
           f"{players.loc[p,'firstName'][0]} {players.loc[p,'lastName']:<15}" +
           ("" if slot is None else f" {slot[0]} {slot[1]}"),
           squads.loc[players.loc[p,'squadId'], 'abbreviation'].rjust(4),
-          str(players.loc[p,'averagePoints']).rjust(6),
+          f"{players.loc[p, rank_method]:.1f}".rjust(6),
           str(players.loc[p,'price']).rjust(8),
           ti[p].varValue,
           players.loc[p,'status'].ljust(11),
@@ -203,12 +221,12 @@ for p in players.index:
             player_count += 1
             pos_count[(pos, role)] += 1
             if role == 'field':
-                team_score += players.loc[p,'averagePoints']
+                team_score += players.loc[p, rank_method]
 
     
 for slot, p in new_team.items():
     print_player(p, slot)
-print(f"player count: {player_count}   averagePoints: {team_score}")
+print(f"player count: {player_count}   {rank_method}: {team_score}")
 print()
 print("trade out:")
 for p in trades['out']:
