@@ -15,7 +15,7 @@ or
 py -m pip install -r requirements.txt
 ```
 
-In the root of the directory, create a file called fantasy_creds.py with just your afl fantasy website credentials in it like so:
+In the root of the directory, create a file called fantasy_creds.py with your afl fantasy website credentials in it, like so:
 ```python
 uname = "<username>"
 pword = "<password>"
