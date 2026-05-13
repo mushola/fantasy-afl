@@ -19,7 +19,7 @@ role_weight = {'field': 1,
 }
 status_weight = {'emergency'  : 0.25,
                  'injured'    : 0,
-                 'not-playing': 0,
+                 'not-playing': 0, 
                  'playing':     1,
                  'uncertain':   1,
 }
@@ -95,7 +95,7 @@ y = LpVariable.dicts('assign',
 prob += lpSum(
     players.loc[p, 'averagePoints'] * (
     role_weight[SLOTS[s][1]] * status_weight[players.loc[p, 'status']]
-    ) * y[p][s] for p in players.index for s in SLOT_IDS
+    ) * y[p][s] for p, s in PS
 )
 
 ############## CONSTRAINTS ##############

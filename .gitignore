@@ -6,6 +6,7 @@ fantasy_creds.py
 scratch.*
 data/*
 analysis.py
+team_iter.py
 
 
 # Byte-compiled / optimized / DLL files
