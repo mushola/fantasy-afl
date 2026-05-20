@@ -23,12 +23,12 @@ driver.get("https://fantasy.afl.com.au/classic/team")
 
 # log in
 try:
-    username = WebDriverWait(driver, 20).until(
+    username = WebDriverWait(driver, 60).until(
         EC.presence_of_element_located((By.ID, "input27"))
     )
     username.send_keys(fantasy_creds.uname)
     username.send_keys(Keys.RETURN)
-    password = WebDriverWait(driver, 20).until(
+    password = WebDriverWait(driver, 60).until(
         EC.presence_of_element_located((By.ID, "input63"))
     )
     password.send_keys(fantasy_creds.pword)
@@ -38,7 +38,7 @@ except:
     sys.exit(1)
 
 
-def download_data(filename, url, attempts=5):
+def download_data(filename, url, attempts=10):
     cookies_dict = {cookie['name']: cookie['value'] for cookie in driver.get_cookies()}
     response = requests.get(url, cookies=cookies_dict)
     if response.status_code == 200:
