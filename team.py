@@ -9,18 +9,19 @@ now = datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
 
 # use the following option variables to tweak selections
 
-rank_method = 'averagePoints' # 'EWMA', 'averagePoints'
+rank_method = 'EWMA' # 'EWMA', 'averagePoints'
+decay_val = 0.7
 
 player_trade_include = {'out': [], # maximum two players
                         'in':  []  # maximum two players
 }
 player_trade_exclude = [] # any number of players, ignored from both trade in or out
 role_weight = {'field': 1,
-               'bench': 0.25,
+               'bench': 0.75,
 }
-status_weight = {'emergency'  : 0.25,
+status_weight = {'emergency'  : 0.75,
                  'injured'    : 0,
-                 'not-playing': 0, 
+                 'not-playing': 0,
                  'playing':     1,
                  'uncertain':   1,
 }
@@ -65,7 +66,7 @@ current_team.add(team['utilityId'])
 
 
 # calculate expotenially weighted moving average (EWMA)
-def ewma(game_dict, decay=0.8):
+def ewma(game_dict, decay=decay_val):
     if not game_dict:
         return 0
     scores = [score for _, score in 
