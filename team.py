@@ -9,21 +9,22 @@ now = datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
 
 # use the following option variables to tweak selections
 
-rank_method = 'EWMA' # 'EWMA', 'averagePoints'
-decay_val = 0.7
+rank_method = 'averagePoints' # 'EWMA', 'averagePoints'
+ewma_decay = 0.9
 
 player_trade_include = {'out': [], # maximum two players
                         'in':  []  # maximum two players
 }
 player_trade_exclude = [] # any number of players, ignored from both trade in or out
 role_weight = {'field': 1,
-               'bench': 0.75,
+               'bench': 0.25,
 }
-status_weight = {'emergency'  : 0.75,
-                 'injured'    : 0,
-                 'not-playing': 0,
-                 'playing':     1,
-                 'uncertain':   1,
+status_weight = {'emergency'  : 0.25,
+                 'injured'    : 0.1,
+                 'not-playing': 0.1,
+                 'suspended'  : 0.1,
+                 'playing'    : 1,
+                 'uncertain'  : 1,
 }
 
 
@@ -66,7 +67,7 @@ current_team.add(team['utilityId'])
 
 
 # calculate expotenially weighted moving average (EWMA)
-def ewma(game_dict, decay=decay_val):
+def ewma(game_dict, decay=ewma_decay):
     if not game_dict:
         return 0
     scores = [score for _, score in 
@@ -114,7 +115,7 @@ y = LpVariable.dicts('assign',
 prob += lpSum(
     players.loc[p, rank_method] * (
     role_weight[SLOTS[s][1]] * status_weight[players.loc[p, 'status']]
-    ) * y[p][s] for p, s in PS
+    ) * y[p][s] for p in players.index for s in SLOT_IDS
 )
 
 ############## CONSTRAINTS ##############
@@ -193,15 +194,17 @@ def print_player(p, slot=None):
     print(f"({p})".ljust(9),
           f"{players.loc[p,'firstName'][0]} {players.loc[p,'lastName']:<15}" +
           ("" if slot is None else f" {slot[0]} {slot[1]}"),
-          squads.loc[players.loc[p,'squadId'], 'abbreviation'].rjust(4),
-          f"{players.loc[p, rank_method]:.1f}".rjust(6),
-          str(players.loc[p,'price']).rjust(8),
-          ti[p].varValue,
+          squads.loc[players.loc[p,'squadId'], 'abbreviation'].rjust(3),
+          f"{players.loc[p, 'averagePoints']:.1f}".rjust(5),
+          f"{players.loc[p, 'EWMA']:.1f}".rjust(5),
+          str(players.loc[p,'price']).rjust(7),
+          str(players.loc[p,'pricePerPoint']).rjust(5),
+          int(ti[p].varValue),
           players.loc[p,'status'].ljust(11),
           players.loc[p,'position']
         )
 
-total_cost = 0
+budget_rem = team['budget']
 player_count = 0
 pos_count = {(pos, role): 0 for pos in POSITIONS for role in ROLES}
 new_team = {slot: 0 for slot in SLOTS}
@@ -212,22 +215,23 @@ team_score = 0
 for p in players.index:
     if ti[p].varValue == 1:
         trades['in'].append(p)
+        budget_rem -= players.loc[p,'price']
     if to[p].varValue == 1:
         trades['out'].append(p)
+        budget_rem += players.loc[p,'price']
     for s in SLOT_IDS:
         if y[p][s].varValue == 1:
             new_team[SLOTS[s]] = p
             pos, role, _ = SLOTS[s]
-            total_cost += players.loc[p,'price']
             player_count += 1
             pos_count[(pos, role)] += 1
             if role == 'field':
-                team_score += players.loc[p, rank_method]
+                team_score += players.loc[p, 'averagePoints']
 
     
 for slot, p in new_team.items():
     print_player(p, slot)
-print(f"player count: {player_count}   {rank_method}: {team_score}")
+print(f"player count: {player_count}  averagePoints sum: {team_score:.2f}")
 print()
 print("trade out:")
 for p in trades['out']:
@@ -239,7 +243,13 @@ for p in trades['in']:
     
 
 print()
-print(f"total cost: {total_cost}")
+print(f"budget rem: {budget_rem}")
+print(f"global avg averagePoints: {
+    players[players['averagePoints'] != 0]['averagePoints'].mean()
+    :.2f}")
+print(f"global avg pricePerPoint: {
+    players[players['pricePerPoint'] != 0]['pricePerPoint'].mean()
+    :.2f}")
 print()
 print("Status:", LpStatus[prob.status])
 print("Objective:", "{:.2f}".format(pulp.value(prob.objective)))
