@@ -9,13 +9,14 @@ now = datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
 
 # use the following option variables to tweak selections
 
-rank_method = 'averagePoints' # 'EWMA', 'averagePoints'
-ewma_decay = 0.9
+rank_method = 'EWMA' # 'EWMA', 'averagePoints'
+ewma_decay = 0.8
 
-player_trade_include = {'out': [], # maximum two players
-                        'in':  []  # maximum two players
+max_trades = 3
+player_trade_exclude = [1023515] # any number of players, ignored from both trade in or out
+player_trade_include = {'out': [], # include no more than max_trades
+                        'in':  []  # include no more than max_trades
 }
-player_trade_exclude = [] # any number of players, ignored from both trade in or out
 role_weight = {'field': 1,
                'bench': 0.25,
 }
@@ -37,7 +38,6 @@ PROB_STR = "best_fantasy_team"
 BUDGET = 21719000
 SQUAD_COUNT = 30
 EMG_COUNT = 4
-MAX_TRADES = 2
 ROLES = ['field', 'bench']
 POSITIONS = {"DEF": {'field': 6, 'bench': 2},
              "MID": {'field': 8, 'bench': 2},
@@ -124,8 +124,8 @@ prob += lpSum(
 # prob += lpSum(in_squad[p] for p in players.index) == 30
 
 # trades
-prob += lpSum(ti[p] for p in players.index if p not in current_team) <= MAX_TRADES
-prob += lpSum(to[p] for p in current_team) <= MAX_TRADES
+prob += lpSum(ti[p] for p in players.index if p not in current_team) <= max_trades
+prob += lpSum(to[p] for p in current_team) <= max_trades
 prob += lpSum(ti[p] for p in players.index) == lpSum(to[p] for p in players.index)
 
 # trade exclusions
@@ -134,11 +134,11 @@ for p in player_trade_exclude:
     prob += ti[p] == 0
 
 # trade inclusions
-for p in player_trade_include['out'][:MAX_TRADES]:
+for p in player_trade_include['out'][:max_trades]:
     if p in current_team:
         prob += to[p] == 1
 
-for p in player_trade_include['in'][:MAX_TRADES]:
+for p in player_trade_include['in'][:max_trades]:
     if p not in current_team:
         prob += ti[p] == 1
 
@@ -244,12 +244,8 @@ for p in trades['in']:
 
 print()
 print(f"budget rem: {budget_rem}")
-print(f"global avg averagePoints: {
-    players[players['averagePoints'] != 0]['averagePoints'].mean()
-    :.2f}")
-print(f"global avg pricePerPoint: {
-    players[players['pricePerPoint'] != 0]['pricePerPoint'].mean()
-    :.2f}")
+print(f"global med averagePoints: {players[players['averagePoints'] != 0]['averagePoints'].median():.2f}")
+print(f"global med pricePerPoint: {players[players['pricePerPoint'] != 0]['pricePerPoint'].median():.2f}")
 print()
 print("Status:", LpStatus[prob.status])
 print("Objective:", "{:.2f}".format(pulp.value(prob.objective)))
