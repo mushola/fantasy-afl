@@ -29,9 +29,6 @@ status_weight = {'emergency'  : 0.25,
 }
 
 
-curr_round = 9 # TODO determine current round from data import
-
-
 ############## MODEL VARIABLES ##########
 
 PROB_STR = "best_fantasy_team"
@@ -50,10 +47,28 @@ POSITIONS = {"DEF": {'field': 6, 'bench': 2},
 
 players = pd.read_json('data\\players.json').set_index('id')
 squads = pd.read_json('data\\squads.json').set_index('id')
+rounds = pd.read_json('data\\rounds.json').set_index('id')
 with open('data\\team.json') as f:
     team = json.load(f)['success']['team']
 
+
 ############## PREPARE DATA #############
+
+
+# determine current round
+# print(team['labelRoundId'])
+
+'''
+TODO
+penalise bye players or set them to 0 for selecting team purposes, but add them to trade exclude lists
+OR
+run model first to determine trades, add trades to include list, then set weight of bye players
+to zero to allow model to place remaining
+OPTIONAL
+force 18 non bye player requirement to be on field
+'''
+# determine teams with bye for current round
+bye_teams = rounds.loc[team['labelRoundId'], 'byeSquads']
 
 # determine current team - list of ids
 current_team = set()
@@ -201,7 +216,8 @@ def print_player(p, slot=None):
           str(players.loc[p,'pricePerPoint']).rjust(5),
           int(ti[p].varValue),
           players.loc[p,'status'].ljust(11),
-          players.loc[p,'position']
+          "BYE" if players.loc[p,'squadId'] in bye_teams else "   ",
+          players.loc[p,'position'],
         )
 
 budget_rem = team['budget']
