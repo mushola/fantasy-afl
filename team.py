@@ -10,15 +10,16 @@ now = datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()
 # use the following option variables to tweak selections
 
 rank_method = 'EWMA' # 'EWMA', 'averagePoints'
-ewma_decay = 0.8
+ewma_decay = 0.7
 
 max_trades = 3
-player_trade_exclude = [1023515] # any number of players, ignored from both trade in or out
-player_trade_include = {'out': [], # include no more than max_trades
-                        'in':  []  # include no more than max_trades
+player_trade_exclude = [] # any number of players, ignored from both trade in or out
+player_trade_include = {'out': [993834, 1015883, 1028515], # include no more than max_trades
+                        'in':  [992016, 1013464, 1036769]  # include no more than max_trades
 }
 role_weight = {'field': 1,
                'bench': 0.25,
+                 'bye': 0
 }
 status_weight = {'emergency'  : 0.25,
                  'injured'    : 0.1,
@@ -128,6 +129,7 @@ y = LpVariable.dicts('assign',
 ############## OBJECTIVE FUNCTION #######
 
 prob += lpSum(
+    (role_weight['bye'] if players.loc[p,'squadId'] in bye_teams else 1) *
     players.loc[p, rank_method] * (
     role_weight[SLOTS[s][1]] * status_weight[players.loc[p, 'status']]
     ) * y[p][s] for p in players.index for s in SLOT_IDS
